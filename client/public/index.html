@@ -5,14 +5,14 @@
   <title>MUD WebSocket Client</title>
   <style>
     body { font-family: sans-serif; margin: 2em; }
-    #messages { border: 1px solid #ccc; padding: 1em; height: 300px; overflow-y: auto; margin-bottom: 1em; }
+    #messages { border: 1px solid #ccc; padding: 1em; height: 300px; overflow-y: auto; margin-bottom: 1em; white-space: pre-wrap; }
     #input { width: 80%; }
     #send { width: 18%; }
   </style>
 </head>
 <body>
   <h1>MUD WebSocket Client</h1>
-  <div id="messages"></div>
+  <pre id="messages"></pre>
   <input id="input" type="text" placeholder="Type a command..." autofocus />
   <button id="send">Send</button>
   <script src="client.js"></script>

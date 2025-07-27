@@ -5,9 +5,8 @@ const sendBtn = document.getElementById('send');
 
 ws.onmessage = (event) => {
   const msg = JSON.parse(event.data);
-  const div = document.createElement('div');
-  div.textContent = `[${msg.type}] ${msg.data ? JSON.stringify(msg.data) : msg.message || msg.error || msg.raw}`;
-  messages.appendChild(div);
+  const text = `[${msg.type}] ${msg.data ? msg.data : msg.message || msg.error || msg.raw}\n`;
+  messages.textContent += text;
   messages.scrollTop = messages.scrollHeight;
 };
 
