@@ -5,7 +5,14 @@ const sendBtn = document.getElementById('send');
 
 ws.onmessage = (event) => {
   const msg = JSON.parse(event.data);
-  const text = `[${msg.type}] ${msg.data ? msg.data : msg.message || msg.error || msg.raw}\n`;
+  let text;
+  if (msg.type === "mud") {
+    // For mud messages, just show the data without prefix
+    text = `${msg.data}\n`;
+  } else {
+    // For other message types, keep the prefix
+    text = `[${msg.type}] ${msg.data ? msg.data : msg.message || msg.error || msg.raw}\n`;
+  }
   messages.textContent += text;
   messages.scrollTop = messages.scrollHeight;
 };
