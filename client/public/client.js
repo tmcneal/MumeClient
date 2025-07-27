@@ -9,6 +9,10 @@ ws.onmessage = (event) => {
   if (msg.type === "mud") {
     // For mud messages, just show the data without prefix
     text = `${msg.data}\n`;
+  } else if (msg.type === "gmcp") {
+    // For GMCP messages, show the package and data structure
+    const gmcpData = msg.data;
+    text = `[gmcp] ${gmcpData.package}: ${JSON.stringify(gmcpData.data)}\n`;
   } else {
     // For other message types, keep the prefix
     text = `[${msg.type}] ${msg.data ? msg.data : msg.message || msg.error || msg.raw}\n`;
