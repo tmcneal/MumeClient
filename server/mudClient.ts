@@ -2,7 +2,7 @@ import net from "net";
 import zlib from "zlib";
 import { EventEmitter } from "events";
 
-const IAC = 255, SB = 250, SE = 240, MCCP2 = 86;
+const IAC = 255, SB = 250, SE = 240, MCCP2 = 86, GMCP = 201;
 
 export interface MudClientOptions {
   xmlMode?: boolean;
@@ -37,7 +37,7 @@ export class MudClient extends EventEmitter {
     const data = `${state}\n`;
     const cmd = `~$#EX${data.length}\n${data}`;
     // Telnet subnegotiation: IAC SB 102 <cmd> IAC SE
-    const IAC = 255, SB = 250, SE = 240, MPI = 102;
+    const MPI = 102;
     const cmdBuf = Buffer.from(cmd, 'latin1');
     const buf = Buffer.concat([
       Buffer.from([IAC, SB, MPI]),
@@ -64,27 +64,28 @@ export class MudClient extends EventEmitter {
     let i = 0;
     while (i < buf.length) {
       if (buf[i] === IAC) {
-        if (buf[i + 1] === SB && buf[i + 2] === MCCP2) {
+        // GMCP negotiation: IAC WILL GMCP
+        if (buf[i + 1] === 251 && buf[i + 2] === GMCP) {
+          // Respond with IAC DO GMCP
+          this.socket.write(Buffer.from([IAC, 253, GMCP]));
+          console.log('[GMCP] Sent IAC DO GMCP');
+          i += 3;
+          continue;
+        }
+        // GMCP subnegotiation: IAC SB GMCP ... IAC SE
+        if (buf[i + 1] === SB && buf[i + 2] === GMCP) {
           const se = buf.indexOf(SE, i + 3);
           if (se !== -1) {
-            if (!this.mccp) {
-              this.mccp = true;
-              this.inflater = zlib.createInflate();
-              this.inflater.on('data', (out: Buffer) => {
-                this.emitData(out.toString());
-              });
-              this.inflater.on('error', (err: Error) => {
-                this.emit("error", new Error("MCCP decompression error: " + err.message));
-              });
-              this.emit("info", "MCCP compression enabled");
-            }
+            const gmcpData = buf.slice(i + 3, se);
+            this.handleGmcp(gmcpData);
             i = se + 1;
             continue;
           } else {
             this.leftover = buf.slice(i);
             return;
           }
-        } else if (buf[i + 1] === SE) {
+        }
+        if (buf[i + 1] === SE) {
           i += 2;
           continue;
         } else {
@@ -107,6 +108,39 @@ export class MudClient extends EventEmitter {
       }
     }
     this.leftover = null;
+  }
+
+  private handleGmcp(gmcpData: Buffer) {
+    // GMCP data is: package.message [data]
+    const str = gmcpData.toString('utf8');
+    const firstSpace = str.indexOf(' ');
+    let pkg, data;
+    if (firstSpace === -1) {
+      pkg = str.trim();
+      data = undefined;
+    } else {
+      pkg = str.slice(0, firstSpace).trim();
+      data = str.slice(firstSpace + 1).trim();
+    }
+    let parsed: any = data;
+    if (data !== undefined && data.length > 0) {
+      try {
+        // Try to parse as JSON or primitive
+        if (data[0] === '{' || data[0] === '[') {
+          parsed = JSON.parse(data);
+        } else if (data[0] === '"') {
+          parsed = JSON.parse(data);
+        } else if (data === 'null' || data === 'true' || data === 'false' || /^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(data)) {
+          // Primitive: null, true, false, number
+          parsed = JSON.parse('[' + data + ']')[0];
+        } else {
+          parsed = data;
+        }
+      } catch (e) {
+        parsed = data;
+      }
+    }
+    this.emit('gmcp', { package: pkg, data: parsed });
   }
 
   private emitData(text: string) {

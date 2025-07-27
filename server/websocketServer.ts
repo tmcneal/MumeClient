@@ -4,7 +4,7 @@ import { handleMudData } from "./utils";
 
 export function startWebSocketServer({ port, mudHost, mudPort }: { port: number, mudHost: string, mudPort: number }) {
   const WS_PATH = "/ws";
-  const PUBLIC_DIR = "./public";
+  const PUBLIC_DIR = "./client/public";
 
   serve({
     port,
@@ -20,7 +20,7 @@ export function startWebSocketServer({ port, mudHost, mudPort }: { port: number,
       open(ws) {
         // @ts-ignore
         ws.data = { mud: new MudClient(mudHost, mudPort) };
-        const mud = ws.data.mud;
+        const mud = (ws as any).data.mud;
         mud.on("connect", () => {
           ws.send(JSON.stringify({ type: "info", message: "Connected to MUD server (plain text mode)" }));
         });
@@ -40,7 +40,7 @@ export function startWebSocketServer({ port, mudHost, mudPort }: { port: number,
         });
       },
       async message(ws, message) {
-        const mud = ws.data.mud;
+        const mud = (ws as any).data.mud;
         const msg = message.toString().trim();
         if (msg === "/xml on") {
           mud.setXmlMode(true);
@@ -54,7 +54,7 @@ export function startWebSocketServer({ port, mudHost, mudPort }: { port: number,
         mud.send(msg);
       },
       close(ws) {
-        ws.data?.mud?.close();
+        (ws as any).data?.mud?.close();
       },
     },
   });
