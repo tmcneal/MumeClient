@@ -1,8 +1,13 @@
 import net from "net";
 import zlib from "zlib";
 import { EventEmitter } from "events";
+import { parseGmcpMessage, createGmcpResponse, isGmcpNegotiation, isGmcpSubnegotiation } from "./gmcp";
+import { parseXmlMessage } from "./xml";
 
-const IAC = 255, SB = 250, SE = 240, MCCP2 = 86, GMCP = 201;
+const IAC = 255, SB = 250, SE = 240, MCCP2 = 86;
+
+// Regex to match ANSI escape codes
+const ANSI_REGEX = /\x1b\[[0-9;]*m/g;
 
 export interface MudClientOptions {
   xmlMode?: boolean;
@@ -65,19 +70,19 @@ export class MudClient extends EventEmitter {
     while (i < buf.length) {
       if (buf[i] === IAC) {
         // GMCP negotiation: IAC WILL GMCP
-        if (buf[i + 1] === 251 && buf[i + 2] === GMCP) {
-          // Respond with IAC DO GMCP
-          this.socket.write(Buffer.from([IAC, 253, GMCP]));
+        if (isGmcpNegotiation(buf, i)) {
+          this.socket.write(createGmcpResponse());
           console.log('[GMCP] Sent IAC DO GMCP');
           i += 3;
           continue;
         }
         // GMCP subnegotiation: IAC SB GMCP ... IAC SE
-        if (buf[i + 1] === SB && buf[i + 2] === GMCP) {
+        if (isGmcpSubnegotiation(buf, i)) {
           const se = buf.indexOf(SE, i + 3);
           if (se !== -1) {
             const gmcpData = buf.slice(i + 3, se);
-            this.handleGmcp(gmcpData);
+            const gmcpMessage = parseGmcpMessage(gmcpData);
+            this.emit('gmcp', gmcpMessage);
             i = se + 1;
             continue;
           } else {
@@ -110,44 +115,39 @@ export class MudClient extends EventEmitter {
     this.leftover = null;
   }
 
-  private handleGmcp(gmcpData: Buffer) {
-    // GMCP data is: package.message [data]
-    const str = gmcpData.toString('utf8');
-    const firstSpace = str.indexOf(' ');
-    let pkg, data;
-    if (firstSpace === -1) {
-      pkg = str.trim();
-      data = undefined;
-    } else {
-      pkg = str.slice(0, firstSpace).trim();
-      data = str.slice(firstSpace + 1).trim();
-    }
-    let parsed: any = data;
-    if (data !== undefined && data.length > 0) {
-      try {
-        // Try to parse as JSON or primitive
-        if (data[0] === '{' || data[0] === '[') {
-          parsed = JSON.parse(data);
-        } else if (data[0] === '"') {
-          parsed = JSON.parse(data);
-        } else if (data === 'null' || data === 'true' || data === 'false' || /^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(data)) {
-          // Primitive: null, true, false, number
-          parsed = JSON.parse('[' + data + ']')[0];
-        } else {
-          parsed = data;
-        }
-      } catch (e) {
-        parsed = data;
-      }
-    }
-    this.emit('gmcp', { package: pkg, data: parsed });
-  }
-
   private emitData(text: string) {
     this.emit("data", text, this.xmlMode);
   }
 
   close() {
     this.socket.end();
+  }
+}
+
+export async function handleMudData(ws: any, text: string, xmlMode: boolean) {
+  if (xmlMode) {
+    // Strip ANSI codes
+    const clean = text.replace(ANSI_REGEX, "");
+    // Parse XML and get both structured data and plain text
+    const { parsed, plain } = parseXmlMessage(clean);
+    
+    // Log the JSON output
+    console.log('[PARSED XML JSON]', JSON.stringify(parsed, null, 2));
+    
+    // For the web frontend, send only the plain text, split on newlines
+    if (plain) {
+      plain.split(/\r?\n/).forEach(line => {
+        if (line.trim()) {
+          ws.send(JSON.stringify({ type: "mud", data: line.trim() }));
+        }
+      });
+    }
+  } else {
+    // Strip ANSI color codes, split on newlines, and send each line separately
+    text.replace(ANSI_REGEX, "").split(/\r?\n/).forEach(line => {
+      if (line.trim() !== "") {
+        ws.send(JSON.stringify({ type: "mud", data: line }));
+      }
+    });
   }
 } 

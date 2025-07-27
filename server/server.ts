@@ -1,10 +1,9 @@
 import { serve } from "bun";
-import { MudClient } from "./mudClient";
-import { handleMudData } from "./utils";
+import { MudClient, handleMudData } from "./mud";
 
-export function startWebSocketServer({ port, mudHost, mudPort }: { port: number, mudHost: string, mudPort: number }) {
+export function startServer({ port, mudHost, mudPort }: { port: number, mudHost: string, mudPort: number }) {
   const WS_PATH = "/ws";
-  const PUBLIC_DIR = "./client/public";
+  const PUBLIC_DIR = "./client/public"; // Corrected path
 
   serve({
     port,
@@ -18,9 +17,8 @@ export function startWebSocketServer({ port, mudHost, mudPort }: { port: number,
     },
     websocket: {
       open(ws) {
-        // @ts-ignore
-        ws.data = { mud: new MudClient(mudHost, mudPort) };
-        const mud = (ws as any).data.mud;
+        (ws as any).data = { mud: new MudClient(mudHost, mudPort) }; // Type assertion
+        const mud = (ws as any).data.mud; // Type assertion
         mud.on("connect", () => {
           ws.send(JSON.stringify({ type: "info", message: "Connected to MUD server (plain text mode)" }));
         });
@@ -29,6 +27,9 @@ export function startWebSocketServer({ port, mudHost, mudPort }: { port: number,
         });
         mud.on("data", (text: string, xmlMode: boolean) => {
           handleMudData(ws, text, xmlMode);
+        });
+        mud.on("gmcp", (gmcpMsg: { package: string, data: any }) => {
+          ws.send(JSON.stringify({ type: "gmcp", data: gmcpMsg }));
         });
         mud.on("end", () => {
           ws.send(JSON.stringify({ type: "info", message: "Disconnected from MUD server" }));
@@ -40,7 +41,7 @@ export function startWebSocketServer({ port, mudHost, mudPort }: { port: number,
         });
       },
       async message(ws, message) {
-        const mud = (ws as any).data.mud;
+        const mud = (ws as any).data.mud; // Type assertion
         const msg = message.toString().trim();
         if (msg === "/xml on") {
           mud.setXmlMode(true);
@@ -54,7 +55,7 @@ export function startWebSocketServer({ port, mudHost, mudPort }: { port: number,
         mud.send(msg);
       },
       close(ws) {
-        (ws as any).data?.mud?.close();
+        (ws as any).data?.mud?.close(); // Type assertion
       },
     },
   });
