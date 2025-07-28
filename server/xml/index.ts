@@ -1,1 +1,0 @@
-export { parseXmlMessage } from './xmlParser'; 

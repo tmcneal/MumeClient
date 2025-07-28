@@ -1,7 +1,7 @@
 import { test, expect, describe } from "bun:test";
-import { parseXmlMessage } from "../xml";
+import { parseMudOutput } from "../text";
 
-describe("parseXmlMessage", () => {
+describe("parseMudOutput", () => {
   test("should parse room XML to structured JSON format", () => {
     const input = `<room id=54237 area="Dol Guldur" terrain=building>
   <name>In the Pits of Lugburz</name>
@@ -10,7 +10,7 @@ describe("parseXmlMessage", () => {
   </exits>
 </room>`;
     
-    const { parsed, plain } = parseXmlMessage(input);
+    const { parsed, plain } = parseMudOutput(input);
     
     // Single assertion that validates the complete JSON response
     expect(parsed).toEqual({
@@ -34,7 +34,7 @@ describe("parseXmlMessage", () => {
   test("should parse status XML fragments to structured format", () => {
     const input = "<status>429</status>/<status>430</status> hits, <status>62</status>/<status>63</status> mana, and <status>130</status>/<status>131</status> moves";
     
-    const { parsed, plain } = parseXmlMessage(input);
+    const { parsed, plain } = parseMudOutput(input);
     
     expect(parsed).toEqual({
       score: {
@@ -60,7 +60,7 @@ describe("parseXmlMessage", () => {
   test("should parse stats XML fragments to structured format", () => {
     const input = "OB: <status>133</status>%, DB: <status>14</status>%, PB: <status>0</status>%, Armour: <status>5</status>%. Wimpy: <status>429</status>. Mood: <status>wimpy</status>.\nNeeded: <status>111,315</status> xp, <status>3</status> tp. Gold: <status>0</status>. Alert: <status>normal</status>.";
     
-    const { parsed, plain } = parseXmlMessage(input);
+    const { parsed, plain } = parseMudOutput(input);
     
     expect(parsed).toEqual({
       stats: {
@@ -84,7 +84,7 @@ describe("parseXmlMessage", () => {
   test("should parse hit XML output to structured format", () => {
     const input = "<hit>You strongly hit a <character>snaga orc</character>'s right hand.</hit>";
     
-    const { parsed, plain } = parseXmlMessage(input);
+    const { parsed, plain } = parseMudOutput(input);
     
     expect(parsed).toEqual({
       hit: {
@@ -99,7 +99,7 @@ describe("parseXmlMessage", () => {
   test("should parse damage XML output to structured format", () => {
     const input = "<damage>A <character>snaga orc</character> lightly crushes your left leg and tickles it.</damage>";
     
-    const { parsed, plain } = parseXmlMessage(input);
+    const { parsed, plain } = parseMudOutput(input);
     
     expect(parsed).toEqual({
       damage: {
@@ -114,7 +114,7 @@ describe("parseXmlMessage", () => {
   test("should parse tell XML output with mixed content to structured format", () => {
     const input = "<tell><character><player>Suvorov</player></character> tells you 'alright'</tell>";
     
-    const { parsed, plain } = parseXmlMessage(input);
+    const { parsed, plain } = parseMudOutput(input);
     
     expect(parsed).toEqual({
       tell: {
@@ -136,7 +136,7 @@ A <character>hungry warg</character> stands here, sniffing around for flesh.
 <exits from=9069590>Exits: <exit dir=east id=1904185>east</exit>, <exit dir=west id=4228336>west</exit>.
 </exits></room>`;
     
-    const { parsed, plain } = parseXmlMessage(input);
+    const { parsed, plain } = parseMudOutput(input);
     
     expect(parsed).toEqual({
       movement: {
@@ -161,7 +161,7 @@ A <character>hungry warg</character> stands here, sniffing around for flesh.
   test("should parse character XML fragments to structured format", () => {
     const input = "<character><player>Azg the Tarkhnarb Orc</player></character> is standing here.\n<character><player>Azg the War Grinder</player></character> is in an excellent condition.";
     
-    const { parsed, plain } = parseXmlMessage(input);
+    const { parsed, plain } = parseMudOutput(input);
     
     expect(parsed).toEqual({
       characters: [
@@ -177,7 +177,7 @@ A <character>hungry warg</character> stands here, sniffing around for flesh.
   test("should parse character XML fragments from mob examination", () => {
     const input = "A tall, dirty orc is standing in front of you, ready to store your stuff in his\nrotten cupboard. He will keep an eye on it, but don't trust too much in his\nhonesty.\nA <character>crouched orc</character> is in an excellent condition.";
     
-    const { parsed, plain } = parseXmlMessage(input);
+    const { parsed, plain } = parseMudOutput(input);
     
     expect(parsed).toEqual({
       characters: [
@@ -192,7 +192,7 @@ A <character>hungry warg</character> stands here, sniffing around for flesh.
   test("should parse group XML output to structured format", () => {
     const input = "<header>Group Member    Hits  Mana   Moves State Room</header>\n--------------------------------------------------------------------------\nAzg          <status>430</status>/<status>430</status> <status>63</status>/<status>63</status> <status>131</status>/<status>131</status>       In a Hidden Pit beneath Barad-dur";
     
-    const { parsed, plain } = parseXmlMessage(input);
+    const { parsed, plain } = parseMudOutput(input);
     
     expect(parsed).toEqual({
       group: {
@@ -211,7 +211,7 @@ A <character>hungry warg</character> stands here, sniffing around for flesh.
   test("should decode HTML entities in prompt tags", () => {
     const input = "<prompt>oO CW&gt;</prompt>";
     
-    const { parsed, plain } = parseXmlMessage(input);
+    const { parsed, plain } = parseMudOutput(input);
     
     expect(parsed).toEqual({
       prompt: {
@@ -226,7 +226,7 @@ A <character>hungry warg</character> stands here, sniffing around for flesh.
   test("should parse allies output without creating character properties", () => {
     const input = "<header>Allies</header>\n-------\n      Prog Metal\n      Azg the War Grinder [Retired]\n [ A] Rogon Rogoff (Idle)\n\n3 allies on.\n130 players engaged in the war, with 19 recently active.\n\n<prompt>oO CW&gt;</prompt>";
     
-    const { parsed, plain } = parseXmlMessage(input);
+    const { parsed, plain } = parseMudOutput(input);
     
     expect(parsed).toEqual({
       header: {
@@ -245,7 +245,7 @@ A <character>hungry warg</character> stands here, sniffing around for flesh.
 
   test("should handle simple XML elements", () => {
     const input = "<root>hello world</root>";
-    const { parsed, plain } = parseXmlMessage(input);
+    const { parsed, plain } = parseMudOutput(input);
     
     expect(parsed).toEqual({
       root: {
@@ -258,7 +258,7 @@ A <character>hungry warg</character> stands here, sniffing around for flesh.
 
   test("should handle self-closing tags", () => {
     const input = "<movement dir=south/>";
-    const { parsed, plain } = parseXmlMessage(input);
+    const { parsed, plain } = parseMudOutput(input);
     
     expect(parsed).toEqual({
       movement: {
@@ -271,7 +271,7 @@ A <character>hungry warg</character> stands here, sniffing around for flesh.
 
   test("should handle mixed content with XML fragments", () => {
     const input = "Some text <tag>content</tag> more text <selfclosing/>";
-    const { parsed, plain } = parseXmlMessage(input);
+    const { parsed, plain } = parseMudOutput(input);
     
     expect(parsed).toEqual({
       tag: {
@@ -285,7 +285,7 @@ A <character>hungry warg</character> stands here, sniffing around for flesh.
 
   test("should handle invalid XML gracefully", () => {
     const input = "This is not XML at all";
-    const { parsed, plain } = parseXmlMessage(input);
+    const { parsed, plain } = parseMudOutput(input);
     
     expect(parsed).toBeNull();
     expect(plain).toBe("This is not XML at all");

@@ -507,7 +507,7 @@ function extractRawText(children: any[]): string {
   return rawText.replace(/\s+/g, ' ').trim();
 }
 
-export function parseXmlMessage(text: string): { parsed: any, plain: string } {
+export function parseMudOutput(text: string): { parsed: any, plain: string } {
   // Preprocess XML to quote unquoted attributes
   const processedText = quoteUnquotedAttributes(text);
   

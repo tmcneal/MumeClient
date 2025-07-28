@@ -2,7 +2,7 @@ import net from "net";
 import zlib from "zlib";
 import { EventEmitter } from "events";
 import { parseGmcpMessage, createGmcpResponse, isGmcpNegotiation, isGmcpSubnegotiation } from "./gmcp";
-import { parseXmlMessage } from "./xml";
+import { parseMudOutput } from "./text";
 
 const IAC = 255, SB = 250, SE = 240, MCCP2 = 86;
 
@@ -122,7 +122,7 @@ export async function handleMudData(ws: any, text: string, xmlMode: boolean) {
     // Strip ANSI codes
     const clean = text.replace(ANSI_REGEX, "");
     // Parse XML and get both structured data and plain text
-    const { parsed, plain } = parseXmlMessage(clean);
+    const { parsed, plain } = parseMudOutput(clean);
     
     // Log the JSON output
     console.log('[PARSED XML JSON]', JSON.stringify(parsed, null, 2));
