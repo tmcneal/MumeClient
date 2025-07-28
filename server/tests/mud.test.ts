@@ -117,6 +117,69 @@ describe("handleMudData", () => {
     };
     handleMudData(ws, input, true);
   });
+
+  test("should parse room XML to structured JSON format", (done) => {
+    const input = `<room id=54237 area="Dol Guldur" terrain=building>
+  <name>In the Pits of Lugburz</name>
+  A <object>mailbox</object> stands here stuffed full of messages.
+  <exits from=54237>Exits: <exit dir=east id=7158160>east</exit>, <exit dir=west id=13527665>west</exit>.
+  </exits>
+</room>`;
+    
+    // Capture the console.log output to verify the structured JSON
+    const originalLog = console.log;
+    let loggedOutput = "";
+    console.log = (...args: any[]) => {
+      if (args[0] === '[PARSED XML JSON]') {
+        loggedOutput = args[1];
+      }
+      originalLog.apply(console, args);
+    };
+
+    ws.onSend = () => {
+      console.log = originalLog;
+      
+      // Parse the logged JSON output
+      const parsedXml = JSON.parse(loggedOutput);
+      
+      // Verify the structure matches the expected format
+      expect(parsedXml).toHaveLength(1);
+      expect(parsedXml[0]).toHaveProperty("room");
+      
+      const room = parsedXml[0].room;
+      expect(room).toHaveProperty("$");
+      expect(room.$).toEqual({
+        id: "54237",
+        area: "Dol Guldur",
+        terrain: "building"
+      });
+      
+      // Check for name
+      const nameNode = room.children.find((child: any) => child.name && child.name._ === "In the Pits of Lugburz");
+      expect(nameNode).toBeDefined();
+      
+      // Check for exits
+      const exitsNode = room.children.find((child: any) => child.exits);
+      expect(exitsNode).toBeDefined();
+      expect(exitsNode.exits.$).toEqual({ from: "54237" });
+      
+      // Check for exit directions
+      const exitNodes = exitsNode.exits.children.filter((child: any) => child.exit);
+      expect(exitNodes).toHaveLength(2);
+      
+      const eastExit = exitNodes.find((exit: any) => exit.exit.$?.dir === "east");
+      const westExit = exitNodes.find((exit: any) => exit.exit.$?.dir === "west");
+      expect(eastExit).toBeDefined();
+      expect(westExit).toBeDefined();
+      expect(eastExit.exit.$?.id).toBe("7158160");
+      expect(westExit.exit.$?.id).toBe("13527665");
+      
+      ws.onSend = undefined;
+      done();
+    };
+    
+    handleMudData(ws, input, true);
+  });
 });
 
 afterAll(() => {
