@@ -37,19 +37,12 @@ export class MudClient extends EventEmitter {
 
   setXmlMode(on: boolean) {
     this.xmlMode = on;
-    // Send the correct MPI command for XML mode as a Telnet subnegotiation (option 102)
+    // Send MPI command as plain text with proper newline
+    // Format: ~$#EX1\n<state>\n where <state> is "0" to disable or "1" to enable
     const state = on ? '1' : '0';
-    const data = `${state}\n`;
-    const cmd = `~$#EX${data.length}\n${data}`;
-    // Telnet subnegotiation: IAC SB 102 <cmd> IAC SE
-    const MPI = 102;
-    const cmdBuf = Buffer.from(cmd, 'latin1');
-    const buf = Buffer.concat([
-      Buffer.from([IAC, SB, MPI]),
-      cmdBuf,
-      Buffer.from([IAC, SE])
-    ]);
-    this.sendRaw(buf);
+    const plainCmd = `\n~$#EX1\n${state}\n`;
+    console.log('[XML MODE] Sending plain text command:', JSON.stringify(plainCmd));
+    this.sendRaw(plainCmd);
   }
 
   private sendRaw(data: string | Buffer) {

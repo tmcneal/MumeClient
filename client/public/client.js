@@ -23,12 +23,14 @@ ws.onmessage = (event) => {
 
 sendBtn.onclick = send;
 input.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') send();
+  if (e.key === 'Enter') {
+    e.preventDefault(); // Prevent default to avoid form submission behavior
+    send();
+  }
 });
 
 function send() {
-  if (input.value.trim()) {
-    ws.send(input.value);
-    input.value = '';
-  }
+  // Always send the message, even if empty (for Enter key)
+  ws.send(input.value);
+  input.value = '';
 } 
